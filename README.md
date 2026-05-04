@@ -1,28 +1,28 @@
-# 🏴‍☠️ Pi Demo - Custom Coding Agent
+# 🤖 Pi Demo - Custom Coding Agent
 
-Ahoy, matey! Welcome aboard the **pi-demo** - a swashbuckling coding agent built with pi's SDK!
+Welcome to **pi-demo** - a professional coding agent built with pi's SDK!
 
-## 🦜 What Be This?
+## 📋 Overview
 
-This be a custom coding agent with a pirate personality, built using the `@mariozechner/pi-coding-agent` SDK. This seafarin' bot can help ye navigate the treacherous waters of code with style and flair!
+This is a custom coding agent built using the `@mariozechner/pi-coding-agent` SDK. This intelligent assistant helps you navigate coding tasks efficiently and effectively!
 
-## ⚓ Features
+## ✨ Features
 
-- 🏴‍☠️ **Pirate-themed personality** - Because coding should be an adventure!
-- 🌤️ **Custom weather tool** - Check the weather in any port
-- 🎨 **Colored terminal output** - Easy on the eyes, savvy
-- 💾 **Session persistence** - Remembers yer previous voyages
-- 🔧 **Standard coding tools** - File operations, bash commands, and more
+- 🤖 **Professional AI assistant** - Focused on productivity and clarity
+- 🌤️ **Weather integration** - Check weather conditions for any city
+- 🎨 **Enhanced terminal output** - Clean, readable interface
+- 💾 **Session persistence** - Maintains conversation history
+- 🔧 **Comprehensive coding tools** - File operations, bash commands, and more
 
-## 🚢 Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (the ship's engine)
-- npm (the cargo manifest)
+- Node.js (JavaScript runtime)
+- npm (package manager)
 
 ### Installation
 
-1. **Clone this repository** (if ye haven't already):
+1. **Clone this repository**:
    ```bash
    git clone <repository-url>
    cd pi-demo
@@ -33,19 +33,19 @@ This be a custom coding agent with a pirate personality, built using the `@mario
    npm install
    ```
 
-3. **Set sail**:
+3. **Start the application**:
    ```bash
    npm start
    ```
 
-## 🗺️ Project Structure
+## 📁 Project Structure
 
 ```
 pi-demo/
-├── agent.ts           # The main agent code - where the magic happens!
-├── package.json       # Project manifest and dependencies
+├── agent.ts           # Main agent implementation
+├── package.json       # Project configuration and dependencies
 ├── package-lock.json  # Dependency lock file
-└── node_modules/      # Third-party treasures
+└── node_modules/      # Third-party packages
 ```
 
 ## 🔧 Built With
@@ -56,24 +56,24 @@ pi-demo/
 
 ## 🎯 Usage
 
-Once ye start the agent, ye can:
-- Ask for coding help with a pirate twist
-- Get weather updates for any city
+Once you start the agent, you can:
+- Get professional coding assistance
+- Check weather updates for any city
 - Perform file operations
 - Execute bash commands
-- And much more, matey!
+- And much more!
 
 ## 📜 License
 
-ISC - Free as the seven seas!
+ISC License - Open source and free to use!
 
 ## 🤝 Contributing
 
-All hands on deck are welcome! Feel free to:
-- Report issues (bugs in the rigging)
-- Suggest improvements (new routes to explore)
-- Submit pull requests (join the crew!)
+Contributions are welcome! Feel free to:
+- Report issues and bugs
+- Suggest new features and improvements
+- Submit pull requests
 
 ---
 
-*May fair winds fill yer sails and yer code be bug-free! 🌊*
+*Happy coding! 🚀*
