@@ -1,10 +1,10 @@
 /**
  * 🤖 My Custom Coding Agent
  *
- * A fun coding agent built on pi's SDK with:
- * - A custom personality (pirate-themed!)
- * - A custom "weather" tool
+ * A coding agent built on pi's SDK with:
+ * - Custom tools (weather, timestamp)
  * - Colored terminal output
+ * - Tab autocomplete
  * - Session persistence
  */
 
@@ -29,6 +29,7 @@ const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
 const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
 const magenta = (s: string) => `\x1b[35m${s}\x1b[0m`;
+const blue = (s: string) => `\x1b[34m${s}\x1b[0m`;
 
 // ── Custom Tool: Weather ────────────────────────────────────────────
 const weatherTool = defineTool({
@@ -65,7 +66,7 @@ const timestampTool = defineTool({
 
 // ── Setup ───────────────────────────────────────────────────────────
 async function main() {
-  console.log(bold(cyan("\n🏴‍☠️  Captain Code — Your Pirate Coding Agent\n")));
+  console.log(bold(cyan("\n🤖  CodeBot — Custom Coding Agent\n")));
   console.log(dim("Built on pi SDK • Type 'exit' or 'quit' to leave\n"));
 
   const authStorage = AuthStorage.create();
@@ -89,21 +90,17 @@ async function main() {
   console.log(green(`✓ Tools: read, bash, edit, write + weather, timestamp`));
   console.log(dim("─".repeat(55)) + "\n");
 
-  // Custom system prompt with pirate personality
+  // Custom system prompt
   const loader = new DefaultResourceLoader({
     cwd: process.cwd(),
     agentDir: getAgentDir(),
-    systemPromptOverride: () => `You are Captain Code, a pirate-themed coding assistant! 🏴‍☠️
-
-You speak with occasional pirate flair (but stay helpful and clear).
-Sprinkle in nautical terms like "Ahoy!", "Aye!", "Arrr", "matey", "sailing through the code", etc.
-But don't overdo it — you're a professional pirate who gets things done.
+    systemPromptOverride: () => `You are CodeBot, a helpful and concise coding assistant.
 
 You have access to standard coding tools (read, bash, edit, write) plus:
-- weather: get weather for any city (for fun)
+- weather: get weather for any city
 - timestamp: get current date/time
 
-Be concise. Help the user code. Have fun! 🦜`,
+Be concise and direct. Focus on helping the user code effectively.`,
   });
   await loader.reload();
 
@@ -170,22 +167,22 @@ Be concise. Help the user code. Have fun! 🦜`,
   });
 
   const ask = () => {
-    rl.question(magenta("\n🦜 You > "), async (input) => {
+    rl.question(blue("\n> "), async (input) => {
       const trimmed = input.trim();
       if (!trimmed) return ask();
       if (trimmed === "exit" || trimmed === "quit") {
-        console.log(cyan("\n🏴‍☠️  Fair winds, matey! Until next time! ⚓\n"));
+        console.log(cyan("\nGoodbye! 👋\n"));
         session.dispose();
         rl.close();
         return;
       }
 
       if (trimmed === "help") {
-        console.log(cyan("\n🏴‍☠️  Captain Code — Help"));
+        console.log(cyan("\n🤖  CodeBot — Help"));
         console.log(dim("─".repeat(40)));
         console.log(`  ${green("tools")}    — List available tools`);
         console.log(`  ${green("help")}     — Show this help`);
-        console.log(`  ${green("exit")}     — Leave the ship`);
+        console.log(`  ${green("exit")}     — Quit`);
         console.log(dim("\n  Tab to autocomplete commands & tool names"));
         return ask();
       }
@@ -199,7 +196,7 @@ Be concise. Help the user code. Have fun! 🦜`,
       }
 
       try {
-        process.stdout.write(cyan("\n🏴‍☠️  Captain Code > "));
+        process.stdout.write(cyan("\n🤖 CodeBot > "));
         await session.prompt(trimmed);
       } catch (err: any) {
         console.error(red(`\n❌ Error: ${err.message}`));
