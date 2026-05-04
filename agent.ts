@@ -20,6 +20,8 @@ import {
   SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import * as readline from "readline";
+import * as fs from "fs";
+import * as path from "path";
 
 // ── Colors for terminal output ──────────────────────────────────────
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
@@ -142,13 +144,27 @@ Be concise and direct. Focus on helping the user code effectively.`,
   };
 
   let firstTextReceived = false;
+  let promptStartTime = 0;
+  let turnCount = 0;
+  let toolCallCount = 0;
+  let lastResponse = "";
+  let currentResponse = "";
+  let lastPrompt = "";
 
   // ── Event Handling ──────────────────────────────────────────────
   session.subscribe((event) => {
     switch (event.type) {
       case "agent_start":
         firstTextReceived = false;
+        promptStartTime = Date.now();
+        turnCount = 0;
+        toolCallCount = 0;
+        currentResponse = "";
         startSpinner("Thinking");
+        break;
+
+      case "turn_start":
+        turnCount++;
         break;
 
       case "message_update":
@@ -157,12 +173,15 @@ Be concise and direct. Focus on helping the user code effectively.`,
             stopSpinner();
             firstTextReceived = true;
           }
-          process.stdout.write(event.assistantMessageEvent.delta);
+          const delta = event.assistantMessageEvent.delta;
+          currentResponse += delta;
+          process.stdout.write(delta);
         }
         break;
 
       case "tool_execution_start": {
         stopSpinner();
+        toolCallCount++;
         const args = event.args ?? {};
         let detail = "";
         if (event.toolName === "bash" && args.command) {
@@ -189,10 +208,16 @@ Be concise and direct. Focus on helping the user code effectively.`,
         startSpinner("Thinking");
         break;
 
-      case "agent_end":
+      case "agent_end": {
         stopSpinner();
-        process.stdout.write("\n");
+        lastResponse = currentResponse;
+        const elapsed = ((Date.now() - promptStartTime) / 1000).toFixed(1);
+        const stats = [`${elapsed}s`];
+        if (turnCount > 1) stats.push(`${turnCount} turns`);
+        if (toolCallCount > 0) stats.push(`${toolCallCount} tool call${toolCallCount > 1 ? "s" : ""}`);
+        process.stdout.write("\n" + dim(`  ⏱ ${stats.join(" · ")}`) + "\n");
         break;
+      }
     }
   });
 
@@ -230,11 +255,98 @@ Be concise and direct. Focus on helping the user code effectively.`,
       }
       console.log(dim(`\nType /switch <number> to change model`));
     }},
+    { name: "/thinking", description: "Cycle thinking level", handler: () => {
+      const newLevel = session.cycleThinkingLevel();
+      if (newLevel) {
+        console.log(green(`\n✓ Thinking level: ${newLevel}`));
+      } else {
+        console.log(dim(`\nThinking level: ${session.thinkingLevel}`));
+      }
+    }},
+    { name: "/stats", description: "Show session statistics", handler: () => {
+      const msgs = session.messages;
+      const userMsgs = msgs.filter((m) => m.role === "user").length;
+      const assistantMsgs = msgs.filter((m) => m.role === "assistant").length;
+      const m = session.agent.state.model;
+      console.log(cyan("\n📊 Session Stats"));
+      console.log(dim("─".repeat(40)));
+      console.log(`  ${dim("Model:")}       ${(m as any)?.name ?? m?.id} (${m?.provider})`);
+      console.log(`  ${dim("Thinking:")}    ${session.thinkingLevel}`);
+      console.log(`  ${dim("Messages:")}    ${msgs.length} total (${userMsgs} user, ${assistantMsgs} assistant)`);
+      console.log(`  ${dim("Streaming:")}   ${session.isStreaming ? yellow("yes") : "no"}`);
+    }},
+    { name: "/copy", description: "Copy last response to clipboard", handler: async () => {
+      if (!lastResponse) {
+        console.log(dim("\nNo response to copy yet."));
+        return;
+      }
+      try {
+        const { execSync } = await import("child_process");
+        execSync("pbcopy", { input: lastResponse });
+        console.log(green("\n✓ Last response copied to clipboard"));
+      } catch {
+        console.log(red("\n❌ Failed to copy (pbcopy not available)"));
+      }
+    }},
+    { name: "/export", description: "Export conversation to file", handler: () => {
+      const msgs = session.messages;
+      if (msgs.length === 0) {
+        console.log(dim("\nNo messages to export."));
+        return;
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const filename = `codebot-${timestamp}.md`;
+      let content = `# CodeBot Conversation\n\nExported: ${new Date().toLocaleString()}\n\n---\n\n`;
+      for (const msg of msgs) {
+        if (msg.role === "user") {
+          const text = msg.content?.map((c: any) => c.type === "text" ? c.text : "").join("") ?? "";
+          if (text) content += `## 💬 User\n\n${text}\n\n---\n\n`;
+        } else if (msg.role === "assistant") {
+          const text = msg.content?.map((c: any) => c.type === "text" ? c.text : "").join("") ?? "";
+          if (text) content += `## 🤖 CodeBot\n\n${text}\n\n---\n\n`;
+        }
+      }
+      fs.writeFileSync(filename, content);
+      console.log(green(`\n✓ Exported to ${filename}`));
+    }},
+    { name: "/compact", description: "Compact conversation history", handler: async () => {
+      startSpinner("Compacting");
+      try {
+        const result = await session.compact();
+        stopSpinner();
+        console.log(green("\n✓ Conversation compacted"));
+      } catch (err: any) {
+        stopSpinner();
+        console.error(red(`\n❌ Compaction failed: ${err.message}`));
+      }
+    }},
+    { name: "/retry", description: "Retry last prompt", handler: async () => {
+      if (!lastPrompt) {
+        console.log(dim("\nNo previous prompt to retry."));
+        return;
+      }
+      console.log(dim(`\nRetrying: ${lastPrompt}`));
+      try {
+        process.stdout.write(cyan("\n🤖 CodeBot > "));
+        await session.prompt(lastPrompt);
+      } catch (err: any) {
+        console.error(red(`\n❌ Error: ${err.message}`));
+      }
+    }},
     { name: "/switch", description: "Switch model (e.g. /switch 3)", handler: () => {
       // Handled separately since it takes an argument
     }},
     { name: "/clear", description: "Clear the screen", handler: () => {
       console.clear();
+    }},
+    { name: "/abort", description: "Abort current operation", handler: async () => {
+      if (session.isStreaming) {
+        await session.abort();
+        stopSpinner();
+        console.log(yellow("\n⚠ Aborted."));
+      } else {
+        console.log(dim("\nNothing to abort."));
+      }
     }},
     { name: "/exit", description: "Quit", handler: () => {
       console.log(cyan("\nGoodbye! 👋\n"));
@@ -279,7 +391,7 @@ Be concise and direct. Focus on helping the user code effectively.`,
     rl.question(blue("\n> "), async (input) => {
       const trimmed = input.trim();
       if (!trimmed) return ask();
-      // Handle slash commands
+      // Handle slash commands with arguments
       if (trimmed.startsWith("/switch ")) {
         const num = parseInt(trimmed.slice(8).trim(), 10);
         if (isNaN(num) || num < 1 || num > available.length) {
@@ -320,6 +432,8 @@ Be concise and direct. Focus on helping the user code effectively.`,
         return ask();
       }
 
+      // Send prompt to agent
+      lastPrompt = trimmed;
       try {
         process.stdout.write(cyan("\n🤖 CodeBot > "));
         await session.prompt(trimmed);
