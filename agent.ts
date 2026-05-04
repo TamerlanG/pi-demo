@@ -127,9 +127,23 @@ Be concise and direct. Focus on helping the user code effectively.`,
         }
         break;
 
-      case "tool_execution_start":
-        process.stdout.write(yellow(`\n⚓ [${event.toolName}] `));
+      case "tool_execution_start": {
+        const args = event.args ?? {};
+        let detail = "";
+        if (event.toolName === "bash" && args.command) {
+          detail = dim(` $ ${args.command}`);
+        } else if (event.toolName === "read" && args.path) {
+          detail = dim(` ${args.path}`);
+        } else if (event.toolName === "edit" && args.path) {
+          detail = dim(` ${args.path}`);
+        } else if (event.toolName === "write" && args.path) {
+          detail = dim(` ${args.path}`);
+        } else if (Object.keys(args).length > 0) {
+          detail = dim(` ${JSON.stringify(args)}`);
+        }
+        process.stdout.write(yellow(`\n⚓ [${event.toolName}]`) + detail + " ");
         break;
+      }
 
       case "tool_execution_end":
         if (event.isError) {
