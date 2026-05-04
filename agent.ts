@@ -118,16 +118,51 @@ Be concise and direct. Focus on helping the user code effectively.`,
     }),
   });
 
+  // ── Spinner ───────────────────────────────────────────────────────
+  const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  let spinnerInterval: ReturnType<typeof setInterval> | null = null;
+  let spinnerFrame = 0;
+
+  const startSpinner = (label = "Thinking") => {
+    stopSpinner();
+    spinnerFrame = 0;
+    process.stdout.write(dim(`\n${spinnerFrames[0]} ${label}...`));
+    spinnerInterval = setInterval(() => {
+      spinnerFrame = (spinnerFrame + 1) % spinnerFrames.length;
+      process.stdout.write(`\r${dim(`${spinnerFrames[spinnerFrame]} ${label}...`)}`);
+    }, 80);
+  };
+
+  const stopSpinner = () => {
+    if (spinnerInterval) {
+      clearInterval(spinnerInterval);
+      spinnerInterval = null;
+      process.stdout.write("\r\x1b[K");
+    }
+  };
+
+  let firstTextReceived = false;
+
   // ── Event Handling ──────────────────────────────────────────────
   session.subscribe((event) => {
     switch (event.type) {
+      case "agent_start":
+        firstTextReceived = false;
+        startSpinner("Thinking");
+        break;
+
       case "message_update":
         if (event.assistantMessageEvent.type === "text_delta") {
+          if (!firstTextReceived) {
+            stopSpinner();
+            firstTextReceived = true;
+          }
           process.stdout.write(event.assistantMessageEvent.delta);
         }
         break;
 
       case "tool_execution_start": {
+        stopSpinner();
         const args = event.args ?? {};
         let detail = "";
         if (event.toolName === "bash" && args.command) {
@@ -151,9 +186,11 @@ Be concise and direct. Focus on helping the user code effectively.`,
         } else {
           process.stdout.write(green("✓ done\n"));
         }
+        startSpinner("Thinking");
         break;
 
       case "agent_end":
+        stopSpinner();
         process.stdout.write("\n");
         break;
     }
