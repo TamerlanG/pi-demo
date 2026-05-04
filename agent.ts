@@ -116,6 +116,8 @@ const searchTool = defineTool({
 });
 
 // ── Setup ───────────────────────────────────────────────────────────
+const startupTime = Date.now();
+
 async function main() {
   console.log(bold(cyan("\n🤖  CodeBot — Custom Coding Agent\n")));
   console.log(dim("Built on pi SDK • Type 'exit' or 'quit' to leave\n"));
@@ -137,12 +139,14 @@ async function main() {
     available.find((m) => m.id.includes("sonnet")) ??
     available[0];
 
+  const bootTime = ((Date.now() - startupTime) / 1000).toFixed(1);
   console.log(green(`✓ Model: ${(preferredModel as any).name ?? preferredModel.id} (${preferredModel.provider})`));
   console.log(green(`✓ Tools: read, bash, edit, write + weather, timestamp, search`));
   console.log(green(`✓ Models available: ${available.length}`));
+  console.log(green(`✓ Ready in ${bootTime}s`));
   console.log(dim("─".repeat(55)));
   console.log(dim("  Tip: Type / and press Tab to see all commands"));
-  console.log(dim("       Type /models to see and switch between models"));
+  console.log(dim("       Type \"\"\" for multiline input"));
   console.log(dim("─".repeat(55)) + "\n");
 
   // Custom system prompt
@@ -436,6 +440,65 @@ Be concise and direct. Focus on helping the user code effectively.`,
       const idx = themeNames.indexOf(currentTheme);
       currentTheme = themeNames[(idx + 1) % themeNames.length];
       console.log(green(`\n✓ Theme: ${currentTheme}`));
+    }},
+    { name: "/diff", description: "Show recent git changes", handler: async () => {
+      try {
+        const { execSync } = await import("child_process");
+        const diff = execSync("git diff --stat 2>/dev/null", { encoding: "utf-8", cwd: process.cwd() }).trim();
+        if (!diff) {
+          const staged = execSync("git diff --staged --stat 2>/dev/null", { encoding: "utf-8", cwd: process.cwd() }).trim();
+          if (!staged) {
+            console.log(dim("\nNo uncommitted changes."));
+          } else {
+            console.log(cyan("\n📝 Staged Changes:"));
+            console.log(staged);
+          }
+        } else {
+          console.log(cyan("\n📝 Uncommitted Changes:"));
+          console.log(diff);
+        }
+      } catch {
+        console.log(dim("\nNot a git repository."));
+      }
+    }},
+    { name: "/undo", description: "Undo last file changes (git checkout)", handler: async () => {
+      try {
+        const { execSync } = await import("child_process");
+        const status = execSync("git status --porcelain 2>/dev/null", { encoding: "utf-8", cwd: process.cwd() }).trim();
+        if (!status) {
+          console.log(dim("\nNothing to undo."));
+          return;
+        }
+        console.log(yellow("\n⚠ Modified files:"));
+        console.log(dim(status));
+        console.log(yellow("\nThis will discard all uncommitted changes!"));
+        // Perform the undo
+        execSync("git checkout -- .", { cwd: process.cwd() });
+        console.log(green("✓ Changes reverted."));
+      } catch {
+        console.log(red("\n❌ Failed to undo (not a git repo or no changes)"));
+      }
+    }},
+    { name: "/git", description: "Show git status", handler: async () => {
+      try {
+        const { execSync } = await import("child_process");
+        const branch = execSync("git branch --show-current 2>/dev/null", { encoding: "utf-8", cwd: process.cwd() }).trim();
+        const status = execSync("git status --short 2>/dev/null", { encoding: "utf-8", cwd: process.cwd() }).trim();
+        const log = execSync("git log --oneline -5 2>/dev/null", { encoding: "utf-8", cwd: process.cwd() }).trim();
+        console.log(cyan(`\n🔀 Git Status`));
+        console.log(dim("─".repeat(40)));
+        console.log(`  ${dim("Branch:")} ${green(branch)}`);
+        if (status) {
+          console.log(`  ${dim("Changes:")}`);
+          status.split("\n").forEach((l) => console.log(`    ${l}`));
+        } else {
+          console.log(`  ${dim("Changes:")} ${green("clean")}`);
+        }
+        console.log(`  ${dim("Recent commits:")}`);
+        log.split("\n").forEach((l) => console.log(`    ${dim(l)}`));
+      } catch {
+        console.log(dim("\nNot a git repository."));
+      }
     }},
     { name: "/exit", description: "Quit", handler: () => {
       console.log(cyan("\nGoodbye! 👋\n"));
