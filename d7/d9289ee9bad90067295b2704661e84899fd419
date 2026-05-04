@@ -1,0 +1,23 @@
+agent.ts
+  f7de287c94393ca5 142,146,149,444-502
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "d7d9289ee9bad90067295b2704661e84899fd419",
+  "prompts": {
+    "f7de287c94393ca5": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019df035-137f-73b6-9736-39f698f6b2cd",
+        "model": "claude-opus-4.6"
+      },
+      "human_author": "Tamerlan Gudabayev",
+      "messages": [],
+      "total_additions": 62,
+      "total_deletions": 1,
+      "accepted_lines": 62,
+      "overriden_lines": 0
+    }
+  }
+}
