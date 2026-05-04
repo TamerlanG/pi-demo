@@ -1,0 +1,23 @@
+README.md
+  ebabfc329db4388e 80-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "6938983ef04f972015939421af08693b000af384",
+  "prompts": {
+    "ebabfc329db4388e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019df09a-e7e2-73c5-a2bd-25bfef2a2cc2",
+        "model": "claude-opus-4.6"
+      },
+      "human_author": "Tamerlan Gudabayev",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
