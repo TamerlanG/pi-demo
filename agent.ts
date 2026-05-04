@@ -66,6 +66,27 @@ const timestampTool = defineTool({
   }),
 });
 
+// ── Custom Tool: Search ─────────────────────────────────────────────
+const searchTool = defineTool({
+  name: "search",
+  label: "Search",
+  description: "Search the web for information. Returns simulated search results.",
+  parameters: Type.Object({
+    query: Type.String({ description: "Search query" }),
+  }),
+  execute: async (_toolCallId, params) => {
+    const results = [
+      `1. "${params.query}" - Overview and documentation (example.com)`,
+      `2. "${params.query} tutorial" - Step-by-step guide (dev.to)`,
+      `3. "${params.query} best practices" - Community discussion (stackoverflow.com)`,
+    ];
+    return {
+      content: [{ type: "text", text: `Search results for "${params.query}":\n${results.join("\n")}` }],
+      details: {},
+    };
+  },
+});
+
 // ── Setup ───────────────────────────────────────────────────────────
 async function main() {
   console.log(bold(cyan("\n🤖  CodeBot — Custom Coding Agent\n")));
@@ -89,7 +110,11 @@ async function main() {
     available[0];
 
   console.log(green(`✓ Model: ${(preferredModel as any).name ?? preferredModel.id} (${preferredModel.provider})`));
-  console.log(green(`✓ Tools: read, bash, edit, write + weather, timestamp`));
+  console.log(green(`✓ Tools: read, bash, edit, write + weather, timestamp, search`));
+  console.log(green(`✓ Models available: ${available.length}`));
+  console.log(dim("─".repeat(55)));
+  console.log(dim("  Tip: Type / and press Tab to see all commands"));
+  console.log(dim("       Type /models to see and switch between models"));
   console.log(dim("─".repeat(55)) + "\n");
 
   // Custom system prompt
@@ -112,7 +137,7 @@ Be concise and direct. Focus on helping the user code effectively.`,
     authStorage,
     modelRegistry,
     resourceLoader: loader,
-    customTools: [weatherTool, timestampTool],
+    customTools: [weatherTool, timestampTool, searchTool],
     sessionManager: SessionManager.inMemory(process.cwd()),
     settingsManager: SettingsManager.inMemory({
       compaction: { enabled: true },
@@ -347,6 +372,36 @@ Be concise and direct. Focus on helping the user code effectively.`,
       } else {
         console.log(dim("\nNothing to abort."));
       }
+    }},
+    { name: "/history", description: "Show conversation history", handler: () => {
+      const msgs = session.messages;
+      if (msgs.length === 0) {
+        console.log(dim("\nNo messages yet."));
+        return;
+      }
+      console.log(cyan("\n📜 Conversation History"));
+      console.log(dim("─".repeat(50)));
+      for (const msg of msgs) {
+        if (msg.role === "user") {
+          const text = msg.content?.map((c: any) => c.type === "text" ? c.text : "").join("") ?? "";
+          if (text) {
+            const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
+            console.log(`  ${blue("▶ You:")} ${preview}`);
+          }
+        } else if (msg.role === "assistant") {
+          const text = msg.content?.map((c: any) => c.type === "text" ? c.text : "").join("") ?? "";
+          if (text) {
+            const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
+            console.log(`  ${cyan("▶ Bot:")} ${preview}`);
+          }
+        }
+      }
+    }},
+    { name: "/system", description: "Show the system prompt", handler: () => {
+      const prompt = session.agent.state.systemPrompt;
+      console.log(cyan("\n📝 System Prompt"));
+      console.log(dim("─".repeat(50)));
+      console.log(dim(prompt));
     }},
     { name: "/exit", description: "Quit", handler: () => {
       console.log(cyan("\nGoodbye! 👋\n"));
