@@ -148,10 +148,25 @@ Be concise. Help the user code. Have fun! 🦜`,
     }
   });
 
+  // ── Autocomplete ──────────────────────────────────────────────
+  const toolNames = session.agent.state.tools.map((t) => t.name);
+  const commands = ["exit", "quit", "help", "tools"];
+  const completions = [...commands, ...toolNames];
+
+  const completer = (line: string): [string[], string] => {
+    // Find the last word being typed
+    const words = line.split(/\s+/);
+    const current = words[words.length - 1].toLowerCase();
+    if (!current) return [[], line];
+    const hits = completions.filter((c) => c.toLowerCase().startsWith(current));
+    return [hits.length ? hits : completions, current];
+  };
+
   // ── REPL Loop ─────────────────────────────────────────────────
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
+    completer,
   });
 
   const ask = () => {
@@ -163,6 +178,24 @@ Be concise. Help the user code. Have fun! 🦜`,
         session.dispose();
         rl.close();
         return;
+      }
+
+      if (trimmed === "help") {
+        console.log(cyan("\n🏴‍☠️  Captain Code — Help"));
+        console.log(dim("─".repeat(40)));
+        console.log(`  ${green("tools")}    — List available tools`);
+        console.log(`  ${green("help")}     — Show this help`);
+        console.log(`  ${green("exit")}     — Leave the ship`);
+        console.log(dim("\n  Tab to autocomplete commands & tool names"));
+        return ask();
+      }
+
+      if (trimmed === "tools") {
+        console.log(cyan("\n⚓ Available Tools:"));
+        for (const tool of session.agent.state.tools) {
+          console.log(`  ${yellow(tool.name.padEnd(14))} ${dim(tool.description ?? "")}`);
+        }
+        return ask();
       }
 
       try {
