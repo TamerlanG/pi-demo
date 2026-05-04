@@ -159,18 +159,59 @@ Be concise and direct. Focus on helping the user code effectively.`,
     }
   });
 
+  // ── Slash Commands ────────────────────────────────────────────
+  const slashCommands: { name: string; description: string; handler: () => void }[] = [
+    { name: "/help", description: "Show this help", handler: () => {
+      console.log(cyan("\n🤖  CodeBot — Commands"));
+      console.log(dim("─".repeat(40)));
+      for (const cmd of slashCommands) {
+        console.log(`  ${green(cmd.name.padEnd(14))} ${dim(cmd.description)}`);
+      }
+      console.log(dim("\n  Tab to autocomplete commands & tool names"));
+    }},
+    { name: "/tools", description: "List available tools", handler: () => {
+      console.log(cyan("\n⚓ Available Tools:"));
+      for (const tool of session.agent.state.tools) {
+        console.log(`  ${yellow(tool.name.padEnd(14))} ${dim(tool.description ?? "")}`);
+      }
+    }},
+    { name: "/model", description: "Show current model", handler: () => {
+      const m = session.agent.state.model;
+      console.log(cyan(`\n🤖 Model: ${(m as any)?.name ?? m?.id ?? "unknown"} (${m?.provider})`));
+    }},
+    { name: "/clear", description: "Clear the screen", handler: () => {
+      console.clear();
+    }},
+    { name: "/exit", description: "Quit", handler: () => {
+      console.log(cyan("\nGoodbye! 👋\n"));
+      session.dispose();
+      rl.close();
+    }},
+  ];
+
+  const slashNames = slashCommands.map((c) => c.name);
+
   // ── Autocomplete ──────────────────────────────────────────────
   const toolNames = session.agent.state.tools.map((t) => t.name);
-  const commands = ["exit", "quit", "help", "tools"];
-  const completions = [...commands, ...toolNames];
+  const plainCommands = ["exit", "quit", "help", "tools"];
+  const allCompletions = [...plainCommands, ...slashNames, ...toolNames];
 
   const completer = (line: string): [string[], string] => {
-    // Find the last word being typed
     const words = line.split(/\s+/);
     const current = words[words.length - 1].toLowerCase();
     if (!current) return [[], line];
-    const hits = completions.filter((c) => c.toLowerCase().startsWith(current));
-    return [hits.length ? hits : completions, current];
+
+    // Typing "/" — show all slash commands
+    if (current === "/") return [slashNames, current];
+
+    // Typing "/..." — filter slash commands
+    if (current.startsWith("/")) {
+      const hits = slashNames.filter((c) => c.startsWith(current));
+      return [hits.length ? hits : slashNames, current];
+    }
+
+    const hits = allCompletions.filter((c) => c.toLowerCase().startsWith(current));
+    return [hits.length ? hits : allCompletions, current];
   };
 
   // ── REPL Loop ─────────────────────────────────────────────────
@@ -184,28 +225,28 @@ Be concise and direct. Focus on helping the user code effectively.`,
     rl.question(blue("\n> "), async (input) => {
       const trimmed = input.trim();
       if (!trimmed) return ask();
+      // Handle slash commands
+      const cmd = slashCommands.find((c) => c.name === trimmed);
+      if (cmd) {
+        cmd.handler();
+        if (trimmed === "/exit") return;
+        return ask();
+      }
+
+      // Legacy plain commands
       if (trimmed === "exit" || trimmed === "quit") {
         console.log(cyan("\nGoodbye! 👋\n"));
         session.dispose();
         rl.close();
         return;
       }
+      if (trimmed === "help") { slashCommands.find((c) => c.name === "/help")!.handler(); return ask(); }
+      if (trimmed === "tools") { slashCommands.find((c) => c.name === "/tools")!.handler(); return ask(); }
 
-      if (trimmed === "help") {
-        console.log(cyan("\n🤖  CodeBot — Help"));
-        console.log(dim("─".repeat(40)));
-        console.log(`  ${green("tools")}    — List available tools`);
-        console.log(`  ${green("help")}     — Show this help`);
-        console.log(`  ${green("exit")}     — Quit`);
-        console.log(dim("\n  Tab to autocomplete commands & tool names"));
-        return ask();
-      }
-
-      if (trimmed === "tools") {
-        console.log(cyan("\n⚓ Available Tools:"));
-        for (const tool of session.agent.state.tools) {
-          console.log(`  ${yellow(tool.name.padEnd(14))} ${dim(tool.description ?? "")}`);
-        }
+      // Show hint if unknown slash command
+      if (trimmed.startsWith("/")) {
+        console.log(red(`\nUnknown command: ${trimmed}`));
+        console.log(dim("Type /help to see available commands"));
         return ask();
       }
 
