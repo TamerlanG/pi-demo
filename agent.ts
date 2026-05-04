@@ -22,6 +22,34 @@ import {
 import * as readline from "readline";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
+
+// ── History persistence ─────────────────────────────────────────────
+const HISTORY_FILE = path.join(os.homedir(), ".codebot_history");
+const MAX_HISTORY = 200;
+
+function loadHistory(): string[] {
+  try {
+    return fs.readFileSync(HISTORY_FILE, "utf-8").split("\n").filter(Boolean).slice(-MAX_HISTORY);
+  } catch { return []; }
+}
+
+function saveHistory(lines: string[]) {
+  try {
+    fs.writeFileSync(HISTORY_FILE, lines.slice(-MAX_HISTORY).join("\n") + "\n");
+  } catch {}
+}
+
+// ── Theme support ───────────────────────────────────────────────────
+type Theme = "default" | "minimal" | "ocean";
+let currentTheme: Theme = "default";
+const themes: Record<Theme, { prompt: string; botPrefix: string; border: string }> = {
+  default: { prompt: "\x1b[34m> \x1b[0m", botPrefix: "\x1b[36m\n\ud83e\udd16 CodeBot > \x1b[0m", border: "\u2500" },
+  minimal: { prompt: "\x1b[2m\u276f \x1b[0m", botPrefix: "\x1b[2m\n\u25b8 \x1b[0m", border: "\u00b7" },
+  ocean:   { prompt: "\x1b[36m\u223c \x1b[0m", botPrefix: "\x1b[34m\n\ud83c\udf0a \x1b[0m", border: "\u2248" },
+};
+
+function getTheme() { return themes[currentTheme]; }
 
 // ── Colors for terminal output ──────────────────────────────────────
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
@@ -403,6 +431,12 @@ Be concise and direct. Focus on helping the user code effectively.`,
       console.log(dim("─".repeat(50)));
       console.log(dim(prompt));
     }},
+    { name: "/theme", description: "Cycle theme (default/minimal/ocean)", handler: () => {
+      const themeNames: Theme[] = ["default", "minimal", "ocean"];
+      const idx = themeNames.indexOf(currentTheme);
+      currentTheme = themeNames[(idx + 1) % themeNames.length];
+      console.log(green(`\n✓ Theme: ${currentTheme}`));
+    }},
     { name: "/exit", description: "Quit", handler: () => {
       console.log(cyan("\nGoodbye! 👋\n"));
       session.dispose();
@@ -436,18 +470,37 @@ Be concise and direct. Focus on helping the user code effectively.`,
   };
 
   // ── REPL Loop ─────────────────────────────────────────────────
+  const history = loadHistory();
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     completer,
-  });
+    history: history as any,
+    historySize: MAX_HISTORY,
+  } as any);
 
-  const ask = () => {
-    rl.question(blue("\n> "), async (input) => {
-      const trimmed = input.trim();
-      if (!trimmed) return ask();
-      // Handle slash commands with arguments
-      if (trimmed.startsWith("/switch ")) {
+  let multilineBuffer: string[] | null = null;
+
+  const processInput = async (trimmed: string) => {
+    // Multiline input: start with """ and end with """
+    if (trimmed === '"""' && !multilineBuffer) {
+      multilineBuffer = [];
+      console.log(dim("  Multiline mode: type your message, then \"\"\" to send"));
+      return ask();
+    }
+    if (multilineBuffer !== null) {
+      if (trimmed === '"""') {
+        const fullInput = multilineBuffer.join("\n");
+        multilineBuffer = null;
+        if (!fullInput.trim()) return ask();
+        return processInput(fullInput.trim());
+      }
+      multilineBuffer.push(trimmed);
+      return ask();
+    }
+
+    // Handle slash commands with arguments
+    if (trimmed.startsWith("/switch ")) {
         const num = parseInt(trimmed.slice(8).trim(), 10);
         if (isNaN(num) || num < 1 || num > available.length) {
           console.log(red(`\nInvalid model number. Use 1-${available.length}. See /models`));
@@ -489,13 +542,22 @@ Be concise and direct. Focus on helping the user code effectively.`,
 
       // Send prompt to agent
       lastPrompt = trimmed;
+      // Save to history
+      history.push(trimmed);
+      saveHistory(history);
       try {
-        process.stdout.write(cyan("\n🤖 CodeBot > "));
+        process.stdout.write(getTheme().botPrefix);
         await session.prompt(trimmed);
       } catch (err: any) {
         console.error(red(`\n❌ Error: ${err.message}`));
       }
       ask();
+    };
+
+  const ask = () => {
+    const prompt = multilineBuffer !== null ? dim("... ") : getTheme().prompt;
+    rl.question("\n" + prompt, async (input) => {
+      await processInput(input.trim());
     });
   };
 
