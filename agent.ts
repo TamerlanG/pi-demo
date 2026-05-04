@@ -160,7 +160,7 @@ Be concise and direct. Focus on helping the user code effectively.`,
   });
 
   // ── Slash Commands ────────────────────────────────────────────
-  const slashCommands: { name: string; description: string; handler: () => void }[] = [
+  const slashCommands: { name: string; description: string; handler: () => void | Promise<void> }[] = [
     { name: "/help", description: "Show this help", handler: () => {
       console.log(cyan("\n🤖  CodeBot — Commands"));
       console.log(dim("─".repeat(40)));
@@ -178,6 +178,23 @@ Be concise and direct. Focus on helping the user code effectively.`,
     { name: "/model", description: "Show current model", handler: () => {
       const m = session.agent.state.model;
       console.log(cyan(`\n🤖 Model: ${(m as any)?.name ?? m?.id ?? "unknown"} (${m?.provider})`));
+    }},
+    { name: "/models", description: "List and switch models", handler: async () => {
+      console.log(cyan("\n🤖 Available Models:"));
+      console.log(dim("─".repeat(50)));
+      const currentModel = session.agent.state.model;
+      for (let i = 0; i < available.length; i++) {
+        const m = available[i];
+        const label = `${(m as any).name ?? m.id}`;
+        const isCurrent = m.id === currentModel?.id && m.provider === currentModel?.provider;
+        const prefix = isCurrent ? green("▸ ") : "  ";
+        const suffix = isCurrent ? green(" (current)") : "";
+        console.log(`${prefix}${yellow(String(i + 1).padStart(2))}. ${label.padEnd(30)} ${dim(m.provider)}${suffix}`);
+      }
+      console.log(dim(`\nType /switch <number> to change model`));
+    }},
+    { name: "/switch", description: "Switch model (e.g. /switch 3)", handler: () => {
+      // Handled separately since it takes an argument
     }},
     { name: "/clear", description: "Clear the screen", handler: () => {
       console.clear();
@@ -226,9 +243,25 @@ Be concise and direct. Focus on helping the user code effectively.`,
       const trimmed = input.trim();
       if (!trimmed) return ask();
       // Handle slash commands
+      if (trimmed.startsWith("/switch ")) {
+        const num = parseInt(trimmed.slice(8).trim(), 10);
+        if (isNaN(num) || num < 1 || num > available.length) {
+          console.log(red(`\nInvalid model number. Use 1-${available.length}. See /models`));
+        } else {
+          const newModel = available[num - 1];
+          try {
+            await session.setModel(newModel as any);
+            console.log(green(`\n✓ Switched to: ${(newModel as any).name ?? newModel.id} (${newModel.provider})`));
+          } catch (err: any) {
+            console.error(red(`\n❌ Failed to switch model: ${err.message}`));
+          }
+        }
+        return ask();
+      }
+
       const cmd = slashCommands.find((c) => c.name === trimmed);
       if (cmd) {
-        cmd.handler();
+        await cmd.handler();
         if (trimmed === "/exit") return;
         return ask();
       }
